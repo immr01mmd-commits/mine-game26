@@ -2,11 +2,11 @@
 <html lang="fa">
 <head>
 <meta charset="UTF-8">
-<title>Mine World</title>
+<title>Mine World Pro</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-body {
+body{
   margin:0;
   font-family:sans-serif;
   background:linear-gradient(135deg,#020617,#0f172a);
@@ -15,11 +15,12 @@ body {
   justify-content:center;
   align-items:center;
   height:100vh;
+  transition: background 0.5s;
 }
-.app {
+.app{
   width:100%;
-  max-width:380px;
-  background:#020617;
+  max-width:400px;
+  background:#0f172a;
   border-radius:20px;
   padding:16px;
 }
@@ -27,7 +28,7 @@ h1{text-align:center;margin:5px 0;}
 .stats{
   display:flex;
   justify-content:space-between;
-  background:#0f172a;
+  background:#1e293b;
   padding:10px;
   border-radius:12px;
   margin-bottom:10px;
@@ -41,7 +42,9 @@ h1{text-align:center;margin:5px 0;}
   background:#22c55e;
   margin-bottom:10px;
   cursor:pointer;
+  transition: transform 0.1s;
 }
+.main-btn:active{transform:scale(0.95);}
 .tabs{
   display:flex;
   gap:6px;
@@ -55,7 +58,9 @@ h1{text-align:center;margin:5px 0;}
   background:#1e293b;
   color:white;
   cursor:pointer;
+  transition: background 0.3s;
 }
+.tabs button:hover{background:#334155;}
 .box{display:none;margin-top:10px;}
 .box.active{display:block;}
 .card{
@@ -72,12 +77,14 @@ h1{text-align:center;margin:5px 0;}
   padding:8px;
   background:#38bdf8;
   cursor:pointer;
+  transition: background 0.3s;
 }
+.card button:hover{background:#60a5fa;}
 </style>
 </head>
 <body>
 <div class="app">
-<h1>⛏ Mine World</h1>
+<h1>⛏ Mine World Pro</h1>
 
 <div class="stats">
   <div>💰 <span id="coin">0</span></div>
@@ -98,15 +105,19 @@ h1{text-align:center;margin:5px 0;}
     <button onclick="upgradePower()">Upgrade (<span id="pCost">10</span>)</button>
   </div>
   <div class="card">
-    Auto Mine  
-    <button onclick="buyAuto()">Buy (<span id="aCost">50</span>)</button>
+    Auto Mine (Speed: <span id="speed">2s</span>)  
+    <button onclick="upgradeAuto()">Upgrade (<span id="aCost">50</span>)</button>
   </div>
 </div>
 
 <div id="shop" class="box">
   <div class="card">
     🎨 Gold Theme  
-    <button onclick="theme()">Buy (100)</button>
+    <button onclick="themeGold()">Buy (100)</button>
+  </div>
+  <div class="card">
+    🎨 Blue Theme  
+    <button onclick="themeBlue()">Buy (100)</button>
   </div>
 </div>
 
@@ -122,14 +133,22 @@ h1{text-align:center;margin:5px 0;}
 const tg = window.Telegram.WebApp;
 tg.ready(); tg.expand();
 
-let data = JSON.parse(localStorage.getItem("mw")) || {
-  coin:0, power:1, level:1, auto:false, best:0
+let data = JSON.parse(localStorage.getItem("mwPro")) || {
+  coin:0, power:1, level:1, auto:false, autoSpeed:2000, best:0
 };
 
 let pCost=10, aCost=50;
+let autoInterval = null;
+
+function playSound(src){
+  const audio = new Audio(src);
+  audio.volume = 0.2;
+  audio.play();
+}
 
 function mine(){
   data.coin += data.power;
+  playSound("https://freesound.org/data/previews/341/341695_6247434-lq.mp3"); // Mine sound
   save();
 }
 
@@ -139,22 +158,42 @@ function upgradePower(){
     data.power++;
     data.level++;
     pCost *= 2;
+    playSound("https://freesound.org/data/previews/64/64449_634166-lq.mp3"); // Upgrade sound
     save();
   }
 }
 
-function buyAuto(){
-  if(data.coin >= aCost && !data.auto){
+function upgradeAuto(){
+  if(data.coin >= aCost){
     data.coin -= aCost;
-    data.auto = true;
-    setInterval(()=>{ data.coin += data.power; save(); },2000);
+    if(!data.auto){
+      data.auto = true;
+      startAuto();
+    } else {
+      data.autoSpeed = Math.max(500, data.autoSpeed - 200); // افزایش سرعت
+      clearInterval(autoInterval);
+      startAuto();
+    }
+    aCost *= 2;
     save();
   }
 }
 
-function theme(){
+function startAuto(){
+  autoInterval = setInterval(()=>{ data.coin += data.power; save(); }, data.autoSpeed);
+}
+
+function themeGold(){
   if(data.coin >= 100){
     document.body.style.background="linear-gradient(135deg,#facc15,#a16207)";
+    data.coin -= 100;
+    save();
+  }
+}
+
+function themeBlue(){
+  if(data.coin >= 100){
+    document.body.style.background="linear-gradient(135deg,#0ea5e9,#1e3a8a)";
     data.coin -= 100;
     save();
   }
@@ -167,18 +206,19 @@ function openTab(id){
 
 function save(){
   data.best = Math.max(data.best, data.coin);
-  localStorage.setItem("mw", JSON.stringify(data));
+  localStorage.setItem("mwPro", JSON.stringify(data));
   document.getElementById("coin").innerText = data.coin;
   document.getElementById("level").innerText = data.level;
   document.getElementById("power").innerText = data.power;
   document.getElementById("pCost").innerText = pCost;
   document.getElementById("aCost").innerText = aCost;
+  document.getElementById("speed").innerText = (data.autoSpeed/1000)+"s";
   document.getElementById("best").innerText = data.best;
 }
 
-// اگر Auto Mine فعال بود، پس از بارگذاری دوباره اجرا شود
+// اگر Auto Mine فعال بود
 if(data.auto){
-  setInterval(()=>{ data.coin += data.power; save(); },2000);
+  startAuto();
 }
 
 save();
