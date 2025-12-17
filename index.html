@@ -2,91 +2,118 @@
 <html lang="fa">
 <head>
 <meta charset="UTF-8">
-<title>Upgrade Mine</title>
+<title>Mine World</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
 <style>
-body{
+body {
   margin:0;
   font-family:sans-serif;
-  background:linear-gradient(135deg,#0f172a,#020617);
+  background:linear-gradient(135deg,#020617,#0f172a);
   color:white;
   display:flex;
   justify-content:center;
   align-items:center;
   height:100vh;
 }
-.game{
+.app {
   width:100%;
-  max-width:360px;
+  max-width:380px;
   background:#020617;
   border-radius:20px;
-  padding:20px;
-  box-shadow:0 0 40px rgba(0,0,0,.6);
+  padding:16px;
 }
-h1{text-align:center;margin:10px 0;}
+h1{text-align:center;margin:5px 0;}
 .stats{
   display:flex;
   justify-content:space-between;
+  background:#0f172a;
+  padding:10px;
+  border-radius:12px;
   margin-bottom:10px;
 }
-.mine-btn{
+.main-btn{
   width:100%;
   padding:18px;
   font-size:22px;
+  border:none;
+  border-radius:16px;
   background:#22c55e;
-  border:none;
-  border-radius:14px;
-  margin:10px 0;
+  margin-bottom:10px;
+  cursor:pointer;
 }
-.mine-btn:active{transform:scale(.97);}
-.upgrades{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:10px;
+.tabs{
+  display:flex;
+  gap:6px;
+  margin-bottom:10px;
 }
-.up{
-  background:#1e293b;
-  border-radius:14px;
-  padding:10px;
-  font-size:14px;
-}
-.up button{
-  width:100%;
-  margin-top:6px;
-  background:#38bdf8;
-  border:none;
+.tabs button{
+  flex:1;
   padding:8px;
+  border:none;
   border-radius:10px;
+  background:#1e293b;
+  color:white;
+  cursor:pointer;
 }
-img{
-  width:40px;
+.box{display:none;margin-top:10px;}
+.box.active{display:block;}
+.card{
+  background:#1e293b;
+  border-radius:12px;
+  padding:10px;
+  margin-bottom:8px;
+}
+.card button{
+  width:100%;
+  margin-top:5px;
+  border:none;
+  border-radius:10px;
+  padding:8px;
+  background:#38bdf8;
+  cursor:pointer;
 }
 </style>
 </head>
-
 <body>
-<div class="game">
-<h1>⛏ Mine Up</h1>
+<div class="app">
+<h1>⛏ Mine World</h1>
 
 <div class="stats">
   <div>💰 <span id="coin">0</span></div>
-  <div>⚡ Lv <span id="level">1</span></div>
+  <div>🆙 Lv <span id="level">1</span></div>
 </div>
 
-<button class="mine-btn" onclick="mine()">⛏ MINE</button>
+<button class="main-btn" onclick="mine()">⛏ MINE</button>
 
-<div class="upgrades">
-  <div class="up">
-    🧤 Power
-    <br>+1 / click
+<div class="tabs">
+  <button onclick="openTab('up')">🧤 Upgrades</button>
+  <button onclick="openTab('shop')">🏪 Shop</button>
+  <button onclick="openTab('rank')">🏆 Rank</button>
+</div>
+
+<div id="up" class="box active">
+  <div class="card">
+    Power (+<span id="power">1</span>)  
     <button onclick="upgradePower()">Upgrade (<span id="pCost">10</span>)</button>
   </div>
-  <div class="up">
-    ⚡ Speed
-    <br>Auto mine
-    <button onclick="upgradeAuto()">Upgrade (<span id="aCost">25</span>)</button>
+  <div class="card">
+    Auto Mine  
+    <button onclick="buyAuto()">Buy (<span id="aCost">50</span>)</button>
+  </div>
+</div>
+
+<div id="shop" class="box">
+  <div class="card">
+    🎨 Gold Theme  
+    <button onclick="theme()">Buy (100)</button>
+  </div>
+</div>
+
+<div id="rank" class="box">
+  <div class="card">
+    🏆 Best Coins  
+    <p id="best">0</p>
   </div>
 </div>
 </div>
@@ -95,14 +122,11 @@ img{
 const tg = window.Telegram.WebApp;
 tg.ready(); tg.expand();
 
-let data = JSON.parse(localStorage.getItem("mineData")) || {
-  coin:0, power:1, level:1, auto:false
+let data = JSON.parse(localStorage.getItem("mw")) || {
+  coin:0, power:1, level:1, auto:false, best:0
 };
 
-let pCost = 10;
-let aCost = 25;
-
-update();
+let pCost=10, aCost=50;
 
 function mine(){
   data.coin += data.power;
@@ -119,26 +143,45 @@ function upgradePower(){
   }
 }
 
-function upgradeAuto(){
+function buyAuto(){
   if(data.coin >= aCost && !data.auto){
     data.coin -= aCost;
     data.auto = true;
-    setInterval(()=>{data.coin+=data.power; save();},2000);
+    setInterval(()=>{ data.coin += data.power; save(); },2000);
     save();
   }
 }
 
-function update(){
-  coin.innerText=data.coin;
-  level.innerText=data.level;
-  pCost.innerText=pCost;
-  aCost.innerText=aCost;
+function theme(){
+  if(data.coin >= 100){
+    document.body.style.background="linear-gradient(135deg,#facc15,#a16207)";
+    data.coin -= 100;
+    save();
+  }
+}
+
+function openTab(id){
+  document.querySelectorAll(".box").forEach(b=>b.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
 }
 
 function save(){
-  localStorage.setItem("mineData",JSON.stringify(data));
-  update();
+  data.best = Math.max(data.best, data.coin);
+  localStorage.setItem("mw", JSON.stringify(data));
+  document.getElementById("coin").innerText = data.coin;
+  document.getElementById("level").innerText = data.level;
+  document.getElementById("power").innerText = data.power;
+  document.getElementById("pCost").innerText = pCost;
+  document.getElementById("aCost").innerText = aCost;
+  document.getElementById("best").innerText = data.best;
 }
+
+// اگر Auto Mine فعال بود، پس از بارگذاری دوباره اجرا شود
+if(data.auto){
+  setInterval(()=>{ data.coin += data.power; save(); },2000);
+}
+
+save();
 </script>
 </body>
 </html>
