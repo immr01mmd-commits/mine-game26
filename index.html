@@ -2,226 +2,120 @@
 <html lang="fa">
 <head>
 <meta charset="UTF-8">
-<title>Mine World Pro</title>
+<title>Guess the Country World</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-body{
-  margin:0;
-  font-family:sans-serif;
-  background:linear-gradient(135deg,#020617,#0f172a);
-  color:white;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  height:100vh;
-  transition: background 0.5s;
-}
-.app{
-  width:100%;
-  max-width:400px;
-  background:#0f172a;
-  border-radius:20px;
-  padding:16px;
-}
-h1{text-align:center;margin:5px 0;}
-.stats{
-  display:flex;
-  justify-content:space-between;
-  background:#1e293b;
-  padding:10px;
-  border-radius:12px;
-  margin-bottom:10px;
-}
-.main-btn{
-  width:100%;
-  padding:18px;
-  font-size:22px;
-  border:none;
-  border-radius:16px;
-  background:#22c55e;
-  margin-bottom:10px;
-  cursor:pointer;
-  transition: transform 0.1s;
-}
-.main-btn:active{transform:scale(0.95);}
-.tabs{
-  display:flex;
-  gap:6px;
-  margin-bottom:10px;
-}
-.tabs button{
-  flex:1;
-  padding:8px;
-  border:none;
-  border-radius:10px;
-  background:#1e293b;
-  color:white;
-  cursor:pointer;
-  transition: background 0.3s;
-}
-.tabs button:hover{background:#334155;}
-.box{display:none;margin-top:10px;}
-.box.active{display:block;}
-.card{
-  background:#1e293b;
-  border-radius:12px;
-  padding:10px;
-  margin-bottom:8px;
-}
-.card button{
-  width:100%;
-  margin-top:5px;
-  border:none;
-  border-radius:10px;
-  padding:8px;
-  background:#38bdf8;
-  cursor:pointer;
-  transition: background 0.3s;
-}
-.card button:hover{background:#60a5fa;}
+body { margin:0; font-family:sans-serif; display:flex; justify-content:center; align-items:center; height:100vh; background:#0f172a; color:white;}
+.app{width:100%; max-width:450px; background:#1e293b; padding:16px; border-radius:20px; text-align:center;}
+button{padding:10px 14px; margin:5px; border:none; border-radius:10px; cursor:pointer; background:#22c55e; color:white; font-size:16px; transition:.2s;}
+button:hover{background:#16a34a;}
+#timer{font-size:18px;margin-bottom:8px;}
+.correct{background:#10b981!important;}
+.wrong{background:#ef4444!important;}
 </style>
 </head>
 <body>
 <div class="app">
-<h1>⛏ Mine World Pro</h1>
-
-<div class="stats">
-  <div>💰 <span id="coin">0</span></div>
-  <div>🆙 Lv <span id="level">1</span></div>
-</div>
-
-<button class="main-btn" onclick="mine()">⛏ MINE</button>
-
-<div class="tabs">
-  <button onclick="openTab('up')">🧤 Upgrades</button>
-  <button onclick="openTab('shop')">🏪 Shop</button>
-  <button onclick="openTab('rank')">🏆 Rank</button>
-</div>
-
-<div id="up" class="box active">
-  <div class="card">
-    Power (+<span id="power">1</span>)  
-    <button onclick="upgradePower()">Upgrade (<span id="pCost">10</span>)</button>
-  </div>
-  <div class="card">
-    Auto Mine (Speed: <span id="speed">2s</span>)  
-    <button onclick="upgradeAuto()">Upgrade (<span id="aCost">50</span>)</button>
-  </div>
-</div>
-
-<div id="shop" class="box">
-  <div class="card">
-    🎨 Gold Theme  
-    <button onclick="themeGold()">Buy (100)</button>
-  </div>
-  <div class="card">
-    🎨 Blue Theme  
-    <button onclick="themeBlue()">Buy (100)</button>
-  </div>
-</div>
-
-<div id="rank" class="box">
-  <div class="card">
-    🏆 Best Coins  
-    <p id="best">0</p>
-  </div>
-</div>
+<h1>🌍 Guess the Country</h1>
+<div id="timer">زمان: <span id="timeLeft">10</span></div>
+<img id="flag" width="150" style="margin:10px 0;">
+<div id="options"></div>
+<p>امتیاز: <span id="score">0</span></p>
+<button id="restartBtn" style="display:none;" onclick="startGame()">شروع مجدد</button>
 </div>
 
 <script>
-const tg = window.Telegram.WebApp;
-tg.ready(); tg.expand();
+// لیست کد ISO کشورها (alpha-2)
+const isoCodes = [
+"AF","AL","DZ","AS","AD","AO","AI","AQ","AG","AR","AM","AW","AU","AT","AZ",
+"BS","BH","BD","BB","BY","BE","BZ","BJ","BM","BT","BO","BA","BW","BR","VG",
+"BN","BG","BF","BI","KH","CM","CA","CV","KY","CF","TD","CL","CN","CX","CC",
+"CO","KM","CG","CD","CR","CI","HR","CU","CW","CY","CZ","DK","DJ","DM","DO",
+"EC","EG","SV","GQ","ER","EE","ET","FK","FO","FJ","FI","FR","GF","PF","GA",
+"GM","GE","DE","GH","GI","GR","GL","GD","GP","GU","GT","GG","GN","GW","GY",
+"HT","HN","HK","HU","IS","IN","ID","IR","IQ","IE","IM","IL","IT","JM","JP",
+"JE","JO","KZ","KE","KI","KP","KR","KW","KG","LA","LV","LB","LS","LR","LY",
+"LI","LT","LU","MO","MK","MG","MW","MY","MV","ML","MT","MH","MQ","MR","MU",
+"YT","MX","FM","MD","MC","MN","ME","MS","MA","MZ","MM","NA","NR","NP","NL",
+"NC","NZ","NI","NE","NG","NU","NF","MP","NO","OM","PK","PW","PA","PG","PY",
+"PE","PH","PL","PT","PR","QA","RO","RU","RW","WS","SM","ST","SA","SN","RS",
+"SC","SL","SG","SX","SK","SI","SB","SO","ZA","SS","ES","LK","SD","SR","SZ",
+"SE","CH","SY","TW","TJ","TZ","TH","TL","TG","TK","TO","TT","TN","TR","TM",
+"TC","TV","UG","UA","AE","GB","US","UY","UZ","VU","VA","VE","VN","WF","EH",
+"YE","ZM","ZW"
+];
 
-let data = JSON.parse(localStorage.getItem("mwPro")) || {
-  coin:0, power:1, level:1, auto:false, autoSpeed:2000, best:0
-};
+let countries = [], score=0, current=null, timeLeft=10, timerInterval=null;
 
-let pCost=10, aCost=50;
-let autoInterval = null;
+// ساخت لیست کشورها با نام و پرچم
+isoCodes.forEach(code=>{
+  let name = code; // اگر خواستی میتونی بعداً نام کامل بذاری
+  let flag = `https://flagcdn.com/w320/${code.toLowerCase()}.png`; // پرچم هر کشور 2
+  countries.push({name,flag});
+});
 
-function playSound(src){
-  const audio = new Audio(src);
-  audio.volume = 0.2;
-  audio.play();
+function startGame(){
+  score=0;
+  document.getElementById("score").innerText=score;
+  document.getElementById("restartBtn").style.display="none";
+  newQuestion();
 }
 
-function mine(){
-  data.coin += data.power;
-  playSound("https://freesound.org/data/previews/341/341695_6247434-lq.mp3"); // Mine sound
-  save();
-}
+function newQuestion(){
+  clearInterval(timerInterval);
+  timeLeft=10;
+  document.getElementById("timeLeft").innerText=timeLeft;
+  current = countries[Math.floor(Math.random()*countries.length)];
 
-function upgradePower(){
-  if(data.coin >= pCost){
-    data.coin -= pCost;
-    data.power++;
-    data.level++;
-    pCost *= 2;
-    playSound("https://freesound.org/data/previews/64/64449_634166-lq.mp3"); // Upgrade sound
-    save();
+  let opts=[current.name];
+  while(opts.length<4){
+    let rand=countries[Math.floor(Math.random()*countries.length)].name;
+    if(!opts.includes(rand)) opts.push(rand);
   }
-}
+  opts.sort(()=>Math.random()-0.5);
 
-function upgradeAuto(){
-  if(data.coin >= aCost){
-    data.coin -= aCost;
-    if(!data.auto){
-      data.auto = true;
-      startAuto();
-    } else {
-      data.autoSpeed = Math.max(500, data.autoSpeed - 200); // افزایش سرعت
-      clearInterval(autoInterval);
-      startAuto();
+  document.getElementById("flag").src=current.flag;
+  const div=document.getElementById("options");
+  div.innerHTML="";
+  opts.forEach(opt=>{
+    let btn=document.createElement("button");
+    btn.innerText=opt;
+    btn.onclick=()=>checkAnswer(btn,opt);
+    div.appendChild(btn);
+  });
+
+  timerInterval=setInterval(()=>{
+    timeLeft--;
+    document.getElementById("timeLeft").innerText=timeLeft;
+    if(timeLeft<=0){
+      clearInterval(timerInterval);
+      alert(`⏰ زمان تمام شد!`); 
+      nextQuestion();
     }
-    aCost *= 2;
-    save();
+  },1000);
+}
+
+function checkAnswer(btn, selected){
+  clearInterval(timerInterval);
+  if(selected===current.name){
+    btn.classList.add("correct");
+    score++;
+  } else {
+    btn.classList.add("wrong");
+    alert(`❌ غلط! جواب: ${current.name}`);
   }
+  document.getElementById("score").innerText=score;
+  setTimeout(nextQuestion,500);
 }
 
-function startAuto(){
-  autoInterval = setInterval(()=>{ data.coin += data.power; save(); }, data.autoSpeed);
+function nextQuestion(){
+  if(score>=20){
+    alert(`🎉 تموم شد! امتیاز: ${score}`);
+    document.getElementById("restartBtn").style.display="block";
+  } else newQuestion();
 }
 
-function themeGold(){
-  if(data.coin >= 100){
-    document.body.style.background="linear-gradient(135deg,#facc15,#a16207)";
-    data.coin -= 100;
-    save();
-  }
-}
-
-function themeBlue(){
-  if(data.coin >= 100){
-    document.body.style.background="linear-gradient(135deg,#0ea5e9,#1e3a8a)";
-    data.coin -= 100;
-    save();
-  }
-}
-
-function openTab(id){
-  document.querySelectorAll(".box").forEach(b=>b.classList.remove("active"));
-  document.getElementById(id).classList.add("active");
-}
-
-function save(){
-  data.best = Math.max(data.best, data.coin);
-  localStorage.setItem("mwPro", JSON.stringify(data));
-  document.getElementById("coin").innerText = data.coin;
-  document.getElementById("level").innerText = data.level;
-  document.getElementById("power").innerText = data.power;
-  document.getElementById("pCost").innerText = pCost;
-  document.getElementById("aCost").innerText = aCost;
-  document.getElementById("speed").innerText = (data.autoSpeed/1000)+"s";
-  document.getElementById("best").innerText = data.best;
-}
-
-// اگر Auto Mine فعال بود
-if(data.auto){
-  startAuto();
-}
-
-save();
+startGame();
 </script>
 </body>
 </html>
