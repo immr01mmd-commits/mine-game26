@@ -1,0 +1,149 @@
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext
+import json, os, random
+
+DATA_FILE = "players.json"
+
+# ---------- Load / Save ----------
+if os.path.exists(DATA_FILE):
+    with open(DATA_FILE, "r", encoding="utf-8") as f:
+        players = json.load(f)
+else:
+    players = {}
+
+def save():
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(players, f, ensure_ascii=False, indent=2)
+
+# ---------- Menu ----------
+def menu():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("ماین کن", callback_data="mine"),
+         InlineKeyboardButton("شاپ", callback_data="shop")],
+        [InlineKeyboardButton("لیدربورد", callback_data="top"),
+         InlineKeyboardButton("وضعیت", callback_data="me")]
+    ])
+
+# ---------- Start ----------
+def start(update: Update, context: CallbackContext):
+    user = update.effective_user
+    uid = str(user.id)
+
+    if uid not in players:
+        players[uid] = {"name": user.first_name, "coins": 0, "power": 1}
+        save()
+
+    update.message.reply_text(
+        "به مینی‌گیم ماین خوش آمدی!",
+        reply_markup=menu()
+    )
+
+# ---------- Mine ----------
+def mine(update: Update, context: CallbackContext):
+    q = update.callback_query
+    q.answer()
+    uid = str(q.from_user.id)
+
+    # ماین با شانس
+    earn = random.randint(2,7) * players[uid]["power"]
+    players[uid]["coins"] += earn
+    save()
+
+    q.edit_message_text(
+        f"ماین کردی!\nسکه به دست آمده: {earn}\nکل سکه‌ها: {players[uid]['coins']}",
+        reply_markup=menu()
+    )
+
+# ---------- Shop ----------
+shop_items = {
+    "ابزار ساده": {"price": 30, "power": 1},
+    "ابزار پیشرفته": {"price": 70, "power": 2},
+    "ابزار حرفه‌ای": {"price": 150, "power": 4},
+}
+
+def shop(update: Update, context: CallbackContext):
+    q = update.callback_query
+    q.answer()
+
+    keyboard = [[InlineKeyboardButton(f"{name} - {item['price']} سکه", callback_data=f"buy_{name}")]
+                for name, item in shop_items.items()]
+    keyboard.append([InlineKeyboardButton("بازگشت", callback_data="back")])
+
+    q.edit_message_text("شاپ مینی‌گیم:", reply_markup=InlineKeyboardMarkup(keyboard))
+
+def buy(update: Update, context: CallbackContext):
+    q = update.callback_query
+    q.answer()
+    uid = str(q.from_user.id)
+
+    item_name = q.data.split("_",1)[1]
+    item = shop_items[item_name]
+
+    if players[uid]["coins"] >= item["price"]:
+        players[uid]["coins"] -= item["price"]
+        players[uid]["power"] = item["power"]
+        save()
+        text = f"خرید موفق! قدرت شما اکنون: {players[uid]['power']}"
+    else:
+        text = "سکه کافی نیست!"
+
+    q.edit_message_text(text=text, reply_markup=menu())
+
+# ---------- Leaderboard ----------
+def top(update: Update, context: CallbackContext):
+    q = update.callback_query
+    q.answer()
+    top_players = sorted(players.values(), key=lambda x: x["coins"], reverse=True)[:10]
+
+    text = "لیدربورد:\n"
+    for i, p in enumerate(top_players,1):
+        text += f"{i}. {p['name']} — {p['coins']} سکه\n"
+
+    q.edit_message_text(text=text, reply_markup=menu())
+
+# ---------- Status ----------
+def me(update: Update, context: CallbackContext):
+    q = update.callback_query
+    q.answer()
+    uid = str(q.from_user.id)
+    p = players[uid]
+
+    q.edit_message_text(
+        f"وضعیت شما:\n{p['name']}\nسکه‌ها: {p['coins']}\nقدرت: {p['power']}",
+        reply_markup=menu()
+    )
+
+# ---------- Buttons ----------
+def buttons(update: Update, context: CallbackContext):
+    data = update.callback_query.data
+
+    if data == "mine":
+        mine(update, context)
+    elif data == "shop":
+        shop(update, context)
+    elif data.startswith("buy_"):
+        buy(update, context)
+    elif data == "top":
+        top(update, context)
+    elif data == "me":
+        me(update, context)
+    elif data == "back":
+        update.callback_query.edit_message_text(
+            "منوی اصلی",
+            reply_markup=menu()
+        )
+
+# ---------- Main ----------
+def main():
+    updater = Updater("PUT_YOUR_BOT_TOKEN_HERE", use_context=True)  # جایگزین توکن بات
+    dp = updater.dispatcher
+
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CallbackQueryHandler(buttons))
+
+    updater.start_polling()
+    print("Bot is running...")
+    updater.idle()
+
+if __name__ == "__main__":
+    main()
